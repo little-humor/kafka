@@ -1,0 +1,81 @@
+server:
+  port: 8181
+
+kafka.bootstrap-servers: localhost:9092
+spring:
+  kafka:
+    producer:
+      bootstrap-servers: ${kafka.bootstrap-servers}
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      #指定了有多少分区副本收到消息，生产者才会认为写入成功
+      acks: 1
+      #任意字符串，服务器会用它来识别消息的来源，还可以用在日志和配额指标里
+      client-id: humor_producer
+      #默认每次重试间隔100ms，可以通过retry.backoff.ms参数来改变这个时间间隔。
+      #如果不设置max.in.flight.requests.per.connection=1可能会更改发生重试记录的顺序，因为将两个批次发送到同一分区，第一个批次失败并重试；另一个批次发送成功，则第二个批次中的记录在分区中的偏移量可能相对小。
+      retries: 2
+      #由google发明，占用较少的cpu，却能提供较好的性能和相当可观的压缩比。
+      compression-type: snappy
+      #设置生产者内存缓冲区大小，生产者用它缓冲要送到服务器的消息。
+      #如果应用程序发送消息的速度超过发送到服务器的速度，则生产者send（）将被阻塞，max.block.ms之后将抛出异常
+      buffer-memory: 33554432
+      #当有多个消息需要被发送到同一个分区时，生产者会把它们放在同一个批次。（有助于客户端和服务器的性能）
+      #该参数指定了一个批次可以使用的内存大小，按照字节计算。
+      batch-size: 16384
+      #用于配置其他特定于生产者的属性
+      properties:
+        #用户提供的序列化程序或分区程序中的阻塞不会计入此超时
+        max.block.ms: 50
+        #重试时间间隔，默认100
+        retry.backoff.ms: 150
+        #设置生产者在发送批次之前，等待更多消息加入批次的时间。生产者会在批次填满（batch-size）或者linger.ms达到上限时把批次发送出去
+        linger.ms: 10
+        #设置生产者在收到服务器响应之前可以发送多少个消息。
+        #值越高，就会占用越多的内存，相应的吞吐量提高。如果设置为1可以保证消息是按照发送的顺序写入服务器的（即使发生重试）
+        max.in.flight.requests.per.connection: 5
+        #设置生产者在发送数据时等待服务器返回响应的最大时间，该值应大于replica.lag.time.max.ms(默认值10000)，以减少由于重试而导致的消息重复的可能性
+        request.timeout.ms: 30000
+        #设置生产者发送请求的最大大小（单位：字节）。指单个消息的最大值或者单个请求（批次）中所有消息总的大小。broker对可接受的消息最大值也有自己的限制（message.max.bytes）,所以这两边的配置最好可以匹配，避免生产者发送的消息被broker拒绝。
+        max.request.size: 1048576
+
+    consumer:
+      bootstrap-servers: ${kafka.bootstrap-servers}
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+#      client-id: humor_consumer
+      #设置消费者从broker获取记录的最小字节数。
+      fetch-min-size: 1000
+      #指定了consumer等待broker返回消息的最大时间，默认值为500ms。要么在满足fetch-min-size时返回数据，要么在fetch-max-wait指定的时间后返回所有可用的数据
+      fetch-max-wait: 100ms
+      enable-auto-commit: true
+      #设置偏移量自动提交的频率
+      auto-commit-interval: 500ms
+      #设置poll()方法向协调器发送心跳的频率，一般为session.timeout.ms的三分之一
+      heartbeat-interval: 1s
+      auto-offset-reset: latest
+      #一次调用poll()时返回的最大记录条数
+      max-poll-records: 500
+      properties:
+        #设置服务器从每个分区里返回给消费者的最大字节数。默认值1MB。该属性必须大于max.message.size(broker接收的最大消息的字节数)
+        max.partition.fetch.bytes: 1000000
+        #设置消费者在被认为死亡之前可以与服务器断开连接的时间，默认值为3s（指定了消费者可以多久不发送心跳）
+        #注意：该值必须在broker的配置group.min.session.timeout.ms（默认值6000） and group.max.session.timeout.ms（默认值：30000）范围之内！！不然启动会报超时异常
+        session.timeout.ms: 10000
+        #分区分配策略：Range、RoundRobin
+        partition.assignment.strategy: org.apache.kafka.clients.consumer.RoundRobinAssignor
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
